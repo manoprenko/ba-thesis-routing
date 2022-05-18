@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <iostream>
+#include <random>
 
 struct AssertionError : public std::exception {
 };
@@ -16,6 +17,20 @@ struct AssertionError : public std::exception {
     }                                                 \
   } while (false)
 
+
+class SimpleRng {
+  // Generates uniformly distributed numbers on semi-interval [L, R)
+public:
+  SimpleRng(int L, int R, int seed = 0);
+
+  int operator()();
+
+private:
+  std::mt19937_64 rng_;
+  std::uniform_int_distribution<int> distribution_;
+};
+
+
 class Debug {
 public:
   static void enable();
@@ -29,3 +44,4 @@ private:
 };
 
 #define DEBUG if (Debug::isEnabled())
+

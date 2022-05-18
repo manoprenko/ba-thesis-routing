@@ -182,5 +182,6 @@ std::ostream& operator<<(std::ostream& stream, const Result& res) {
 Result Result::invalid() {
   return Result{
       .is_valid = false,
+      .stats = {},
   };
 }

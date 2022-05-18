@@ -25,7 +25,7 @@
 #include <vector>
 
 int main() {
-  Debug::enable();
+  // Debug::enable();
   std::cout << std::fixed << std::setprecision(2);
 
   const std::vector<std::pair<double, double>> discrete_probas = {

@@ -22,11 +22,11 @@ Stats calcStats(std::vector<double>& v) {
 
 std::ostream& operator<<(std::ostream& stream, const Stats& s) {
   stream << "{ avg = " << s.avg
-      << "; min = " << s.min
+//      << "; min = " << s.min
       << ", mean = " << s.mean
-      << ", p90 = " << s.p90
-      << ", p95 = " << s.p95
-      << ", max = " << s.max
+//      << ", p90 = " << s.p90
+//      << ", p95 = " << s.p95
+//      << ", max = " << s.max
       << " }";
   return stream;
 }
