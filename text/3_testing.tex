@@ -1,0 +1,78 @@
+\section{Algorithm evaluation and testing}
+\label{sec:testing}
+
+A framework for testing purposes was developed during the research. This framework is implemented in C++ and supports graph generation, algorithm evaluation on various graph topologies, validating loop-freedom and calculating the stretch of obtained paths. Also it provides a set of usable abstractions to implement algorithms and manipulate graphs.
+
+\subsection{Graph generation}
+Testing framework provides a functionality to generate various graphs for testing purposes, trying to artificially recreate a real-life network topology. Graph generation consists of two parts: edge weights generation and topology generation. For both of these parts there are several pre-written generators, and any two of such generators may be combined in order to generate a final network.
+
+\subsection{Edge weights generator}
+
+Edge weights generator is basically a random number generator which is capable of generating real numbers corresponding to edge weights according to some distribution. In order for results to be reproducible, all random number generators are seeded with some default value.
+
+The following edge weights distributions were used to evaluate algorithms:
+\begin{itemize}
+\item normal distribution with mean value $7.5$ and variance $1.25$,
+\item discrete distribution with the following probabilities: weight $100$ with probability $0.8$ and one of weights $200$, $300$, $500$, $1000$, $2000$ with same probabilities equal to $0.04$.
+\end{itemize}
+
+\subsection{Topology generator}
+
+Topology generator is capable of producing graphs of some given topology at different configurable scales without edge weights. In our implementation topology generators produce unoriented graphs and then the framework converts them to oriented by replacing each edge with two opposite oriented edges. When weights are assigned to edges, it may be done both in a symmetric manner, when opposite edges are assigned same weights, and asymmetric, when weights are assigned independently.
+
+The following set of graph topologies was used to evaluate algorithms.
+
+\subsubsection{Square Grid}
+
+Square Grid network with side $S$ is a network with $S^2$ nodes where nodes are arranged into a square grid. Adjacent nodes in the grid are connected by edges. This topology is very dense: shortest paths between some pairs of vertices contain $O(S)$ edges, while in other topologies the number of edges on the shortest path between vertices is constant and doesn't asymptotically grow with the scale of the network. Grid topology is sometimes used in computational systems and due its density it might be similar to topologies occurring in some wireless networks, where nodes are located far away from each other and the number of links is relatively small.
+
+Grid topologies with the value of $S$ within the interval from $30$ to $200$ were used to measure performance of implemented algorithms.
+
+\subsubsection{Multi-Homed network}
+
+Multi-Homed network is a network topology where nodes are divided into core routers and host nodes, where the number of core routers is relatively small. Each core router is connected to each host node. Effectively a Multi-Homed network is a complete bipartite graph with core routers in one part and host nodes in the other. This network topology is the simplest example of fault-tolerant network. It may be used in some small or wireless ad-hoc networks which don't need a huge bandwidth, but need to be resistant to router's failures.
+
+A special case of this topology, Dual-Homed network, was used for testing purposes. Dual-Homed network is a Multi-Homed network with two core routers. The number of host nodes in our evaluations varies from $1000$ to $50\,000$.
+
+\subsubsection{Fat-Tree network}
+
+ Fat-Tree network topology \hyperref[ref:fat]{[8]} is parameterized by a value of $k$~--- the number of ports in switches being used to construct the network. We will consider three-level Fat-Tree networks as they are widely used in data center networks.
+ 
+ The network consists of $\left( \frac{k}{2} \right)^2$ core routers, connected to $k$ pods. Each core router is connected to one of aggregation routers of each pod. Each pod consists of $\frac{k}{2}$ aggregation routers and $\frac{k}{2}$ edge routers. Within a single pod each aggregation router in connected to each edge router. Each edge router is connected to $\frac{k}{2}$ servers.
+ 
+ A variations of this network topology are being used in modern data centers because this topology is highly fault-tolerant and link bandwidth is distributed correspondingly to the average load in each part of the network. Also this topology supports up to $\frac{k^3}{4}$ servers and scales very well.
+ 
+ Fat-Tree topologies with three levels and values of $k$ within the interval from $10$ to $40$ were used during the evaluation.
+
+\subsection{Algorithm validation}
+
+Testing framework ensures loop-freedom for all implemented algorithms. In order to do so, for each node $u$ the algorithm is evaluated and the forwarding table $T_u$ is computed. After this is done, we have to check that for each pair of distinct nodes $s$ and $t$ a packet originated at $s$ eventually reaches $t$.
+
+We will do this separately for all possible values of $t$, and for each particular $t$ we will simultaneously check that the required property is satisfied for all possible source nodes $s$. This is done as follows: let's build graph $G'$, where nodes are the same as in original network and for each node $s \neq t$ there is exactly one edge starting at this node, and its end is in the next hop node towards the destination $t$. In other words, the edge set of $G'$ is $\{s \mapsto T_s(t) ~|~s \in V\}$.
+
+Notice that computed forwarding tables are loop-free if and only if all such graphs $G'$ do not have loops in them. Thus for each graph $G'$ we should just check that it's acyclic using simple depth-first search algorithm. Each such graph contains $n$ vertices and $n - 1$ edges, so the asymptotic complexity of the validation is $O(n)$ for each particular node $t$ or $O(n^2)$ for the whole network. Despite the validation itself works relatively fast, it needs the algorithm to be launched $n$ times and this part tends to be the slowest in the whole process.
+
+The same DFS traverse may also compute the distance from each node to $t$ in $G'$. These distances are lengths of forwarding paths from corresponding nodes to $t$. This information may be stored in a matrix in order to compute path stretches afterwards.
+
+Also the running time of the algorithm is measured using a system clock. As the running time for one node is usually relatively small and scattered, we measure the total running time of the algorithm launched for all graph's nodes.
+
+\subsubsection{Model solution}
+
+In order to compare implementations of algorithms, the testing framework needs a model solution, which is basically an implementation of Dijkstra's algorithm. Our implementation of the model solution is written in C++ and uses \texttt{std::priority\_queue} as a core data structure of the algorithm as it tends to be the best option among the C++ standard library by performance.
+
+For each graph both the algorithm and the model solution are evaluated and then relative stretches are calculated using matrices of lengths of forwarding paths. A few metrics of relative stretches are being observed:
+\begin{itemize}
+\item average relative stretch,
+\item mean relative stretch,
+\item 90-th percentile of relative stretch.
+\end{itemize}
+
+For both algorithms being compared their total running time is calculated in order to be observed.
+
+To sum up, algorithm evaluation run consists of the following parts:
+\begin{itemize}
+\item The algorithm itself,
+\item ``Model'' algorithm based on Dijkstra's algorithm used to compute path stretches,
+\item Graph topology generator
+\item Edge weights generator.
+\end{itemize}

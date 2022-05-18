@@ -1,0 +1,49 @@
+\section{Introduction}
+
+\subsection{Motivation}
+Routing is a problem that needs to be solved in any computer network. In the most general sense, solving a routing problem in a computer network means determining how to deliver network packets from one node to another.
+
+In IP networks the routing problem is solved by using forwarding tables. Each node of the network stores its own table containing a set of forwarding rules. Forwarding rules describe for each destination where the packet should be forwarded in order to be eventually delivered to that destination.
+
+Except for some small ad-hoc networks, in modern computer networks topology is constantly changing. This relates to both wireless networks, where nodes may move in space forcing links between nodes to appear and disappear, and wired networks, where links and routers may break due to physical damage or high network load. This means that the routing problem should be solved automatically, especially in large-scale networks, i.e. we need a protocol and an algorithm for each node to construct its forwarding tables. This algorithm should be evaluated whenever a change in network topology occurs in order for routes to be correct and efficient.
+
+Routing protocols are generally divided into two classes: link state and distance vector protocols. In distance vector protocols routers exchange some common information about network topology and build routes using a dynamic programming approach. This type of protocol is usually used in communication between autonomous systems. In this project we are going to focus on the other protocol type.
+
+Link state protocols are usually used within an autonomous system. As opposed to distance vector protocols, in link state protocols each node knows the whole topology of the network and independently calculates its forwarding table. This means that the only type of information that nodes have to exchange with each other is the information about current link states in the network.
+
+Thus, when speaking about link state routing algorithms, the problem comes down to building forwarding tables in each node using the whole information about network topology.
+
+The goal of this project is to improve known link-state routing algorithms in order to achieve better performance while we allow ourselves to build sub-optimal solutions. We will give a formal problem statement in \hyperref[sec:statement]{section 1.2} and review known approaches in \hyperref[sec:known]{section 2}. The rest of the work will contain the description of developed approaches and results obtained during the testing of those approaches.
+
+The code of the testing framework and implementations of algorithms covered in this work are available at \url{https://github.com/manoprenko/ba-thesis-routing}
+
+\subsection{Mathematical model and problem statement}
+\label{sec:statement}
+
+We represent network topology as a graph. In general case this graph may be directed because links may be asymmetric.
+
+Edges in the graph are weighted. Edge weights are positive real numbers representing the cost of a packet forwarding through the corresponding link. In practice edge weights are usually calculated based on bandwidths and latencies of links. Edge weights computation is a separate problem that we are not going to address. It is being actively researched and has some known approaches.
+
+We will denote this graph as $G = (V, E)$, where $V$ is the set of nodes of the network and $E$ is the set of directed weighted edges (i.e. links) between these nodes. Also denote $n = |V|$ as the number of nodes and $m = |E|$ as the number of edges. While in networks nodes are usually identified by their IP addresses, we will numerate all nodes from $1$ to $n$ and use these numbers to identify nodes.
+
+Each node $u$ knows the whole topology of the network (i.e. all edge weights) and evaluates the algorithm in order to compute a forwarding table $T_u$. For each potential destination node $t \neq u$ of the network forwarding table contains a next hop node $v = T_u(t)$, where incoming packet should be forwarded in order to reach node $t$ as fast as possible. There must exist a direct link from $u$ to $v$.
+
+Algorithm must be distributed meaning that no communication between nodes is allowed, except link state messages. Each node should compute its forwarding table independently using only the graph topology.
+
+The most important requirement to the algorithm is the loop-freedom in a distributed model. This means that for any pair of source and destination nodes a packet originated in the source node and consequently forwarded through the network according to forwarding tables in each node should reach the destination at some point. Speaking more formally, for any pair of nodes $s$ and $t$ where $s \neq t$ let's consider the following sequence of nodes:
+\begin{itemize}
+\item $p_0 = s$,
+\item if $p_i = t$, then $p_i$ is the last element of the sequence,
+\item otherwise, $p_{i + 1} = T_{p_i}(t)$.
+\end{itemize}
+
+Loop-freedom means that for any pair of distinct nodes this sequence must be finite. This property guarantees that any packet will be eventually delivered to its destination. Given that this property is satisfied we will call the sequence $p_0, p_1, \ldots, p_k$ a \textit{forwarding path} from $s$ to $t$.
+
+Target function of the algorithm is related to lengths of paths. Length of the path is the sum of weights of all edges belonging to this path. Let $F(u, v)$ be the length of the forwarding path from $s$ to $t$ and $L(u, v)$ be the length of the shortest path from $s$ to $t$. We will define \textit{relative stretch} of the path from $s$ to $t$ $S(s, t)$ as follows:
+$$S(u, v) = \frac{F(u, v) - L(u, v)}{L(u, v)}$$
+
+In order to efficiently utilize the bandwidth of the network and to deliver packets rapidly the lengths of forwarding paths should be as small as possible. We will compute relative stretches of paths between all pairs of distinct nodes and aim to minimize various statistics of these stretches (e.g. average, median or maximum). We will refer to the \textit{quality} of the algorithm as a measure of its relative stretches
+
+The second parameter we are going to optimize is algorithm's performance. We will measure the run time of developed algorithms on various graphs and aim to minimize it in average and worst case. In this work we focus on practical application of developed algorithms, so the run time is our key metric, not the asymptotic complexity of those algorithms.
+
+Detailed description of graphs used for testing purposes will be given in \hyperref[sec:testing]{section 3}

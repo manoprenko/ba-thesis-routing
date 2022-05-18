@@ -1,0 +1,18 @@
+\section{Known solutions}
+\label{sec:known}
+
+Modern link state routing protocols use Dijkstra's algorithm to find shortest paths and compute forwarding tables. Examples of widely used link state protocols are Open Shortest Path First (OSPF) \hyperref[ref:ospf]{[1]} and Intermediate System to Intermediate System (IS-IS) \hyperref[ref:isis]{[2]}. These protocols differ in some implementation details regarding exchange of link state information, but their approaches to the calculation of forwarding tables are essentially the same.
+
+The algorithm for forwarding tables calculation is the following: each node $u$ runs Dijkstra's algorithm and computes all shortest paths from $u$ to all other nodes. Then the forwarding table is computed as follows: $T_u(t)$ is next node after $u$ on the shortest path from $u$ to $t$.
+
+Given that all nodes use the same algorithm described above, all packets are forwarded along the shortest possible path, i.e. for any pair of nodes $s$ and $t$ forwarding path from $s$ to $t$ coincides with one of the shortest paths from $s$ to $t$. This implicates that given algorithm is loop-free and has zero relative stretch for any pair of nodes.
+
+The main disadvantage of this algorithm is its performance. When graph scale grows up to tens of thousands of nodes, Dijkstra's algorithm tends to perform slowly and consume much CPU resources. This may affect the convergence and the speed of path rebuilding when network topology changes. Dijkstra's algorithm asymptotic complexity is $O(m \log n)$ where $n$ is the number of nodes and $m$ is the number of edges in the graph. Despite there being an implementation of the same algorithm with asymptotic complexity $O(n \log n + m)$, it is in fact unusable in practice. Practically efficient implementation of Dijkstra's algorithm requires using a data structure with logarithmic time complexity and doesn't scale very well on large networks.
+
+Our goal is to speed up Dijkstra's algorithm in order to improve its running time. At the same time we are allowed to build sub-optimal forwarding paths in case they remain loop-free. We aim to minimize average relative stretch of paths and have the ability to exchange algorithm's performance for relative stretch.
+
+An approximate shortest path search is a problem being widely researched. A few protocols have been developed in order to adopt approximate paths search \hyperref[ref:ring-zone]{[3-4]}. There are known optimizations of Dijkstra's algorithm used to quickly find shortest paths between pair of vertices in a graph \hyperref[ref:sp-us]{[5-6]}. All these works are not applicable in the case of solving routing problem without the ability to change the existing protocol.
+
+There is also a modification of OSPF protocol, called iSPF, which allows to incrementally recalculate shortest paths when link states in the network change \hyperref[ref:ispf]{[7]}.
+
+In this work we are dealing with an isolated problem: no modifications in the topology could be made and no modifications of a protocol are allowed.

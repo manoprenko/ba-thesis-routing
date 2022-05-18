@@ -1,0 +1,65 @@
+\documentclass[14pt]{scrartcl}
+\usepackage{multicol}
+\usepackage{fancyhdr}
+\usepackage{authblk}
+\usepackage{indentfirst}
+\usepackage{adjustbox}
+\usepackage{multirow}
+\usepackage{filecontents}
+\usepackage{biblatex}
+
+\usepackage[left=4cm,right=4cm,
+    top=2cm,bottom=3cm,bindingoffset=0cm]{geometry}
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=magenta,      
+    urlcolor=blue,
+}
+
+\begin{document}
+
+\input{_title_page.tex}
+
+\newpage
+
+\thispagestyle{empty}
+\tableofcontents
+
+\newpage
+
+\newgeometry{left=2.5cm,right=2.5cm,top=1.5cm}
+
+\input{0_abstract.tex}
+
+\newpage
+
+\input{1_intro.tex}
+
+\newpage
+
+\input{2_known.tex}
+
+\newpage
+
+\input{3_testing.tex}
+
+\newpage
+
+\input{4_algos.tex}
+
+\newpage
+
+\input{5_results.tex}
+
+\newpage
+
+\input{6_references.tex}
+
+% \newpage
+% \section{Further work}
+% Results of algorithms evaluation on different graph topologies and edge distributions, as well as the description of the cluster-related algorithms are subjects for further work and should be included in final work.
+
+\end{document}

@@ -1,0 +1,79 @@
+\section{Developed techniques}
+
+A few techniques have been developed in order to obtain desired optimizations.
+
+\subsection{Limited Dijkstra's algorithm}
+\label{sec:ld}
+This is a general optimization which may be applied to an arbitrary routing algorithm. Let's choose some length bound $L$. It is important that the value of $L$ is equal on all the nodes of the network, so it should be either a predefined constant or a value that may be computed based only on the graph topology and edge weights.
+
+In each node $u$, after the forwarding table is computed by another algorithm, let's launch Dijkstra's algorithm with the following condition: when the algorithm reaches a node with distance more than $L$ from the source, it immediately stops. As a result we will visit all the nodes $v$ where the distance from $u$ to $v$ is less than or equal to $L$, because Dijkstra's algorithm visits nodes in order of the ascendance of the distance from the source.
+
+Then for each visited node $v$ let's change the value of $T_u(v)$ to the next hop node on the computed shortest path from $u$ to $v$.
+
+This optimization basically means the following: when the distance from the current node to the destination becomes less than or equal to $L$, the packet starts being forwarded along the shortest possible path. This means that if initial forwarding tables do not have forwarding loops, then this optimization doesn't create one, so it is correct and may be applied on top of any algorithm with any value of $L$ given that it is the same for all nodes.
+
+By varying the value of $L$ we may exchange algorithm's performance for the stretch of constructed paths: increase of $L$ leads to slower algorithm performance due to more nodes traversed by Dijkstra's algorithm, but decreases stretches of paths as they generally become shorter and never increase.
+Choosing the optimal value of $L$ may be considered as a separate task based on required constraints. We will address this issue later.
+
+\subsection{BFS-based DAG}
+\label{sec:bfs-dag}
+This approach is based on reducing the number of edges taken into consideration while searching for paths.
+
+Namely, in the node $u$ we do the following: launch the breadth-first search algorithm rooted at node $u$. In linear time it allows us to calculate for each node $v$ the following value: $d_1(u, v)$~--- minimal number of edges belonging to some path from $u$ to $v$, i.e. the shortest path from $u$ to $v$ if we replace all edge weights with ones.
+
+After doing this, let's consider the following subset of edges: for each edge starting in node $x$ and ending in node $y$ we will take this edge if and only if $d_1(u, y) = d_1(u, x) + 1$. This means that if we order all nodes by the distance $d_1$ from the source node $u$ in ascending order, we will consider only edges going ``from left to right''. Notice that the obtained spanning graph is acyclic, i.e. it is a DAG. We will find shortest paths from $u$ to all other nodes in this DAG. This can be done in linear time using a dynamic programming approach.
+
+This algorithm is loop-free due to the following reason: when the packet is being forwarded towards destination $t$ from node $u$ to node $v$, the following inequality holds: $d_1(u, t) > d_1(v, t)$. This means that with each hop the distance $d_1$ to the destination vertex decreases. Given that it cannot be negative, this implicates that each packet will eventually reach its destination.
+
+This algorithm is much faster than Dijkstra's algorithm and scales better due to better asymptotic complexity: $O(n + m)$. It performs very well when the variance of edge weights is relatively small. Specifically when all edge weights are the same, it finds shortest paths. When the variance of edge weights grows and their distribution becomes less uniform, this approach might experience huge growth of path stretch.
+
+\subsection{Clustered Dijkstra's algorithm}
+
+The main idea of this approach is the following: let's divide all nodes of the graph into some clusters. Then we split the routing problem into two parts: intra-cluster routing (i.e. routing witin a single cluster) and inter-cluster routing (i.e. routing between clusters). Each of this parts is solved by using the Dijkstra's algorithm or the BFS-based DAG approach mentioned earlier.
+
+\subsubsection{Clustering}
+
+The clustering must be consistent and the same on each node of the network in order to achieve loop-freedom. Distances between nodes within one cluster should be relatively small. In order to achieve this property, the following clustering algorithm is being used.
+
+Choose an integer value of $C$~--- the limit of cluster size. Sort all edges in ascending order by their weights and consider them in this order. Initially each node belongs to its own cluster. When we consider an edge from node $u$ to node $v$, we will look at sizes of clusters these nodes belong to. In case they belong to different clusters and the sum of sizes of these clusters is less than or equal to $C$, then we unite these clusters into one. In order to efficiently perform this operation we are using Disjoint Set Union data structure to store clusters and unite them. This clustering algorithm is similar to Kruskal's algorithm for finding a minimum spanning forest and may be performed in time complexity $O(m \log m)$ caused by the need to sort all edges.
+
+In general case the clustering may be arbitrary. In case it is consistent among all nodes, i.e. independent of the source node and calculated in a deterministic way, the routing algorithm will produce loop-free forwarding tables. A clustering algorithm may affect the performance and the quality of the algorithm, and thus it is a subject to further research and optimizations.
+
+For convenience we will number all the clusters sequentially and denote the number of the cluster which the node $i$ belongs to as $c_i$.
+
+\subsubsection{Inter-cluster routing}
+
+After the clustering is calculated the algorithm builds an inter-cluster forwarding table. First of all we reduce the network graph $G$ by uniting all nodes of each cluster into one aggregated node. Thus we obtain a reduced graph $G'$ where nodes are clusters of the initial network and edges are edges of the initial graph correspondingly translated onto new nodes.
+
+After reducing the graph the algorithm calculates a forwarding table for the graph $G'$ and root node $c_u$ where $u$ is the initial root node. This may be done by either a Dijkstra's algorithm or BFS-based DAG approach. In fact, any routing algorithm is suitable here, even this algorithm's recursive version. The inter-cluster forwarding table is a little bit different from a regular one. For each destination cluster it stores not only the number of the next hop cluster on the way towards destination, but also the edge of the initial graph corresponding to the inter-cluster edge we should traverse in order to reach the destination. Later this information will help us to construct the resultant forwarding table. We denote the obtained inter-cluster forwarding table for the cluster of node $u$ as $TG_{c_u}$.
+
+\subsubsection{Intra-cluster routing}
+
+When launched in the source node $u$, the algorithm should calculate a regular forwarding table within the cluster $c_u$ instead of the whole graph. As well as for the inter-cluster routing, this forwarding table may be calculated by any of approaches mentioned in this work. We denote the obtained intra-cluster forwarding table as $TL_u$. Note that $TL_u(t)$ is undefined if $c_u \neq c_t$.
+
+\subsubsection{Forwarding table calculation}
+
+In order to calculate the resultant forwarding table for the node $u$ we have to combine the information from inter-cluster forwarding table $TG_u$ and intra-cluster forwarding table $TL_u$.
+
+Let's consider all possible destination nodes $t$ and for each of them calculate the next hop node towards $t$. There might be two cases.
+
+\begin{enumerate}
+\item If $c_u = c_t$, then we don't have to perform an inter-cluster routing anymore and should simply deliver the packet to the destination within the current cluster. In order to do this we have to forward the packet to the node $TL_u(t)$. Thus, in this case $T_u(t) = TL_u(t)$.
+\item If $c_u \neq c_t$, then we should first deliver the packet to the correct cluster $c_t$. In order to do this, let's consider the edge $TG_{c_u}(c_t)$. Denote by $x$ the beginning node of this edge and by $y$ the ending node of this edge. Note that $x$ and $y$ are nodes in the initial graph. In order to deliver the packet to the destination, we should deliver it to the node $x$ and forward it along the considered edge.
+
+If $x = u$, then we may immediately forward the packet along this edge. In this case $T_u(t) = y$.
+
+Otherwise, we should forward the packet toward node $x$. As node $x$ belongs to the same cluster as node $u$, i.e. $c_x = c_u$, we may refer to the value $TL_u(x)$ in the intra-cluster forwarding table in order to do this. Thus we obtain $T_u(t) = TL_u(x)$.
+\end{enumerate}
+
+\subsubsection{Correctness}
+
+Let's prove that this algorithm is loop-free.
+
+First of all let's note that inter-cluster forwarding tables $TG$ are consistent and loop-free. This is true due to the correctness of the routing algorithm used to calculate these tables. This means that for any source node $s$ and destination node $t$ the sequence of clusters on the forwarding path from $s$ to $t$ is consistent along all this path and doesn't contain loops. This implies that the sequence of inter-cluster edges on the forwarding path from $s$ to $t$ is also uniquely defined and consistent.
+
+Intra-cluster forwarding tables are also consistent due to the correctness of used routing algorithm. This implies that forwarding paths within a single cluster are also uniquely defined and consistent. Thus, all parts of packet forwarding path are uniquely defined by the destination node and do not change while the packet is being forwarded along the path. This means that the algorithm is loop-free.
+
+This algorithm consists of three parts: clustering, inter-cluster routing and intra-cluster routing. Each of these parts may be implemented and optimized independently of others. If the clustering is efficient enough than the number of nodes and edges in the reduces graph might be significantly less than in the initial graph. Given that clusters are small enough at the same time, the total running time of a routing algorithm for intra-cluster and inter-cluster routing may be less than the running time of the same algorithm on the whole network.
+
+At the same time, clustering reduces quality of constructed routes as some potential forwarding paths are excluded from consideration.
